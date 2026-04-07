@@ -29,6 +29,7 @@ GRAPHQL_QUERY = """
         labels(first: 20) { nodes { name } }
         reviewDecision
         mergeStateStatus
+        mergeQueueEntry { position }
         commits(last: 1) {
           nodes {
             commit {
@@ -79,6 +80,7 @@ class PRStatus:
     ci_rollup: str = "UNKNOWN"  # PENDING, SUCCESS, FAILURE, UNKNOWN
     review_decision: str = "UNKNOWN"  # APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED, UNKNOWN
     merge_state_status: str = "UNKNOWN"  # BEHIND, BLOCKED, CLEAN, DIRTY, DRAFT, HAS_HOOKS, UNKNOWN, UNSTABLE
+    in_merge_queue: bool = False
     agent_status: str = "unknown"  # working, finished, unknown
     agent_started_at: str | None = None
     agent_finished_at: str | None = None
@@ -92,12 +94,8 @@ class PRStatus:
         """Compute PR status: draft, open, in_merge_queue, ready_to_merge."""
         if self.is_draft:
             return "draft"
-        if self.merge_state_status in ("CLEAN", "HAS_HOOKS") and self.state == "OPEN":
-            return "ready_to_merge"
-        if self.merge_state_status == "UNSTABLE" and self.state == "OPEN":
-            # In merge queue or queued
+        if self.in_merge_queue:
             return "in_merge_queue"
-        # Check if CI passed + approved + not draft → ready to merge
         if (not self.is_draft and self.state == "OPEN"
                 and self.ci_status == "passed"
                 and self.review_decision == "APPROVED"):
@@ -205,6 +203,7 @@ def fetch_prs(query: str) -> list[PRStatus]:
             ci_rollup=rollup_state,
             review_decision=node.get("reviewDecision") or "UNKNOWN",
             merge_state_status=node.get("mergeStateStatus") or "UNKNOWN",
+            in_merge_queue=node.get("mergeQueueEntry") is not None,
         )
         prs.append(pr)
 
