@@ -65,7 +65,7 @@ def render(prs: list[PRStatus], events: list[ChangeEvent]) -> None:
         table.add_row(
             pr.repo.split("/")[-1],
             str(pr.number),
-            Text(pr.title, overflow="ellipsis", no_wrap=True, style=f"link {pr.url}"),
+            Text(pr.title, overflow="ellipsis", no_wrap=True, style=f"underline link {pr.url}"),
             draft,
             Text(agent_text, style=agent_color),
             Text(ci_text, style=ci_color),
