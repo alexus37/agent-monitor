@@ -4,13 +4,15 @@ Monitor GitHub Copilot coding agent PRs from the terminal.
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.9+
 - [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated
-- macOS (for notifications via `osascript`)
+- macOS
+- [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) (recommended, for clickable notifications)
 
 ## Install
 
 ```bash
+brew install terminal-notifier  # optional, for click-to-open notifications
 cd agent-monitor
 pip install -e .
 ```
@@ -36,10 +38,10 @@ agent-monitor --query 'is:pr author:app/copilot-swe-agent assignee:octocat state
 
 ## What it does
 
-1. Finds open PRs created by Copilot agent assigned to you
-2. Shows a color-coded status table (agent status, CI checks, draft state)
+1. Finds open PRs created by Copilot agent assigned to you (via GraphQL search)
+2. Shows a color-coded table: agent status, CI checks, review state, draft state, clickable titles
 3. Auto-applies the "Mark Ready When Ready" label to PRs missing it
-4. Sends macOS notifications when:
-   - Copilot starts or finishes work
+4. Sends macOS notifications (click to open the PR in your browser) when:
+   - Copilot starts or finishes work (`copilot_work_started`/`copilot_work_finished` timeline events)
    - A PR moves from draft to ready for review
    - CI passes or fails (skipped tests are **not** counted as failures)
