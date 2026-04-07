@@ -59,6 +59,7 @@ class CheckInfo:
     name: str
     status: str  # COMPLETED, IN_PROGRESS, QUEUED
     conclusion: str | None  # SUCCESS, FAILURE, SKIPPED, etc.
+    is_required: bool = False
 
 
 @dataclass
@@ -86,23 +87,26 @@ class PRStatus:
 
     @property
     def ci_status(self) -> str:
-        """Compute CI status from individual checks."""
+        """Compute CI status from required checks only (falls back to all checks)."""
         if not self.checks:
             return "unknown"
 
-        has_failure = any(c.conclusion in FAIL_CONCLUSIONS for c in self.checks)
+        required = [c for c in self.checks if c.is_required]
+        relevant = required if required else self.checks
+
+        has_failure = any(c.conclusion in FAIL_CONCLUSIONS for c in relevant)
         if has_failure:
             return "failed"
 
         has_pending = any(
             c.status in PENDING_STATUSES or (c.status == "IN_PROGRESS")
-            for c in self.checks
+            for c in relevant
             if c.conclusion is None
         )
         if has_pending:
             return "pending"
 
-        has_pass = any(c.conclusion in PASS_CONCLUSIONS for c in self.checks)
+        has_pass = any(c.conclusion in PASS_CONCLUSIONS for c in relevant)
         if has_pass:
             return "passed"
 
@@ -184,9 +188,10 @@ def fetch_prs(query: str) -> list[PRStatus]:
         )
         prs.append(pr)
 
-    # Enrich with timeline data
+    # Enrich with timeline data and required check status
     for pr in prs:
         _enrich_agent_status(pr)
+        _enrich_required_checks(pr)
 
     return prs
 
@@ -223,3 +228,51 @@ def _enrich_agent_status(pr: PRStatus) -> None:
         pr.agent_status = "working"
     else:
         pr.agent_status = "unknown"
+
+
+REQUIRED_CHECKS_QUERY = """
+{
+  resource(url: "%URL%") {
+    ... on PullRequest {
+      commits(last: 1) {
+        nodes {
+          commit {
+            statusCheckRollup {
+              contexts(first: 100) {
+                nodes {
+                  ... on CheckRun {
+                    name
+                    isRequired(pullRequestNumber: %NUMBER%)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def _enrich_required_checks(pr: PRStatus) -> None:
+    """Mark checks as required/optional using the isRequired GraphQL field."""
+    try:
+        gql = REQUIRED_CHECKS_QUERY.replace("%URL%", pr.url).replace("%NUMBER%", str(pr.number))
+        raw = _run_gh("api", "graphql", "-f", f"query={gql}")
+        data = json.loads(raw)
+    except Exception:
+        return
+
+    required_names: set[str] = set()
+    commits = data.get("data", {}).get("resource", {}).get("commits", {}).get("nodes", [])
+    if commits:
+        rollup = commits[0].get("commit", {}).get("statusCheckRollup")
+        if rollup:
+            for ctx in rollup.get("contexts", {}).get("nodes", []):
+                if ctx.get("isRequired"):
+                    required_names.add(ctx["name"])
+
+    for check in pr.checks:
+        check.is_required = check.name in required_names
