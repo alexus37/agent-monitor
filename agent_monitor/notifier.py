@@ -39,7 +39,6 @@ def notify(event: ChangeEvent) -> None:
                 "-open", event.pr.url,
                 "-sound", "Glass",
                 "-group", event.pr.key,
-                "-sender", "com.apple.Terminal",
             ],
             capture_output=True, timeout=5,
         )
