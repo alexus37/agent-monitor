@@ -7,12 +7,10 @@ Monitor GitHub Copilot coding agent PRs from the terminal.
 - Python 3.9+
 - [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated
 - macOS
-- [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) (recommended, for clickable notifications)
 
 ## Install
 
 ```bash
-brew install terminal-notifier  # optional, for click-to-open notifications
 cd agent-monitor
 pip install -e .
 ```
