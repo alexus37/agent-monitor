@@ -1,4 +1,4 @@
-"""macOS notification dispatch — shows notification, opens PR for important events."""
+"""macOS notification dispatch via osascript."""
 
 from __future__ import annotations
 
@@ -17,16 +17,9 @@ _TITLES = {
     EventType.PR_GONE: "👋 PR Closed/Merged",
 }
 
-# Events important enough to auto-open the PR in the browser
-_AUTO_OPEN_EVENTS = {
-    EventType.COPILOT_FINISHED,
-    EventType.CHECKS_FAILED,
-    EventType.DRAFT_TO_READY,
-}
-
 
 def notify(event: ChangeEvent) -> None:
-    """Send a macOS notification and auto-open important PRs in the browser."""
+    """Send a macOS notification banner."""
     title = _TITLES.get(event.event, "Agent Monitor")
     body = f"{event.pr.repo}#{event.pr.number}: {event.pr.title}"
     if event.detail:
@@ -41,13 +34,6 @@ def notify(event: ChangeEvent) -> None:
         subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
     except Exception:
         pass
-
-    # Auto-open PR in browser for important events
-    if event.event in _AUTO_OPEN_EVENTS:
-        try:
-            subprocess.run(["open", event.pr.url], capture_output=True, timeout=5)
-        except Exception:
-            pass
 
 
 def _escape(s: str) -> str:
