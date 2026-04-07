@@ -65,7 +65,7 @@ def render(prs: list[PRStatus], events: list[ChangeEvent]) -> None:
         table.add_row(
             pr.repo.split("/")[-1],
             str(pr.number),
-            Text(pr.title, overflow="ellipsis", no_wrap=True, style=f"underline link {pr.url}"),
+            Text(pr.title, overflow="ellipsis", no_wrap=True),
             draft,
             Text(agent_text, style=agent_color),
             Text(ci_text, style=ci_color),
@@ -74,6 +74,11 @@ def render(prs: list[PRStatus], events: list[ChangeEvent]) -> None:
         )
 
     console.print(table)
+
+    # PR links (iTerm2 auto-detects URLs — Cmd+click to open)
+    console.print()
+    for pr in prs:
+        console.print(f"  [dim]#{pr.number}[/dim] {pr.url}")
 
     # Summary line
     passed = sum(1 for p in prs if p.ci_status == "passed")
