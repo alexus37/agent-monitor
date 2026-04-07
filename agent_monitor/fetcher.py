@@ -37,7 +37,7 @@ GRAPHQL_QUERY = """
                 state
                 contexts(first: 100) {
                   nodes {
-                    ... on CheckRun { name conclusion status }
+                    ... on CheckRun { name conclusion status databaseId }
                     ... on StatusContext { context state description }
                   }
                 }
@@ -62,6 +62,7 @@ class CheckInfo:
     status: str  # COMPLETED, IN_PROGRESS, QUEUED
     conclusion: str | None  # SUCCESS, FAILURE, SKIPPED, etc.
     is_required: bool = False
+    database_id: int = 0
 
 
 @dataclass
@@ -144,6 +145,16 @@ class PRStatus:
             return "?"
 
 
+def _dedup_checks(checks: list[CheckInfo]) -> list[CheckInfo]:
+    """When a check is re-run, both old and new runs appear. Keep only the latest per name."""
+    best: dict[str, CheckInfo] = {}
+    for c in checks:
+        existing = best.get(c.name)
+        if existing is None or c.database_id > existing.database_id:
+            best[c.name] = c
+    return list(best.values())
+
+
 def _run_gh(*args: str) -> str:
     result = subprocess.run(
         ["gh", *args],
@@ -180,6 +191,7 @@ def fetch_prs(query: str) -> list[PRStatus]:
                             name=ctx["name"],
                             status=ctx.get("status", ""),
                             conclusion=ctx.get("conclusion"),
+                            database_id=ctx.get("databaseId") or 0,
                         ))
                     elif "context" in ctx:
                         checks.append(CheckInfo(
@@ -187,6 +199,9 @@ def fetch_prs(query: str) -> list[PRStatus]:
                             status="COMPLETED" if ctx.get("state") == "SUCCESS" else ctx.get("state", ""),
                             conclusion=ctx.get("state"),
                         ))
+
+        # Deduplicate checks by name — keep only the latest run (highest database_id)
+        checks = _dedup_checks(checks)
 
         pr = PRStatus(
             repo=node["repository"]["nameWithOwner"],
