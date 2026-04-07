@@ -47,9 +47,8 @@ def render(prs: list[PRStatus], events: list[ChangeEvent]) -> None:
         return
 
     table = Table(show_header=True, header_style="bold", expand=True)
-    table.add_column("Repo", style="cyan", no_wrap=True, max_width=30)
-    table.add_column("#", style="cyan", justify="right", width=6)
-    table.add_column("Title", max_width=50)
+    table.add_column("PR", style="cyan", no_wrap=True)
+    table.add_column("Title")
     table.add_column("Status", justify="center", width=12)
     table.add_column("Agent", justify="center", width=12)
     table.add_column("CI", justify="center", width=12)
@@ -69,8 +68,7 @@ def render(prs: list[PRStatus], events: list[ChangeEvent]) -> None:
         rev_text, rev_color = review_map.get(pr.review_decision, ("—", "dim"))
 
         table.add_row(
-            pr.repo.split("/")[-1],
-            str(pr.number),
+            pr.url,
             Text(pr.title, overflow="ellipsis", no_wrap=True),
             Text(pr_text, style=pr_color),
             Text(agent_text, style=agent_color),
@@ -80,11 +78,6 @@ def render(prs: list[PRStatus], events: list[ChangeEvent]) -> None:
         )
 
     console.print(table)
-
-    # PR links (iTerm2 auto-detects URLs — Cmd+click to open)
-    console.print()
-    for pr in prs:
-        console.print(f"  [dim]#{pr.number}[/dim] {pr.url}")
 
     # Summary line
     passed = sum(1 for p in prs if p.ci_status == "passed")
