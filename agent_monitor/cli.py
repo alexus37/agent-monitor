@@ -60,11 +60,20 @@ def main(argv: list[str] | None = None) -> None:
             if args.once:
                 break
 
-            display.console.print(f"\n[dim]Next poll in {args.interval}s — Ctrl+C to quit[/dim]")
-            time.sleep(args.interval)
+            _countdown(args.interval)
 
     except KeyboardInterrupt:
         display.console.print("\n[dim]Stopped.[/dim]")
+
+
+def _countdown(seconds: int) -> None:
+    from rich.live import Live
+    from rich.text import Text
+
+    with Live(Text(""), console=display.console, refresh_per_second=1) as live:
+        for remaining in range(seconds, 0, -1):
+            live.update(Text(f"\nNext poll in {remaining}s — Ctrl+C to quit", style="dim"))
+            time.sleep(1)
 
 
 if __name__ == "__main__":
