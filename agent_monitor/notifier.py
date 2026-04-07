@@ -19,24 +19,34 @@ _TITLES = {
 
 
 def notify(event: ChangeEvent) -> None:
-    """Send a macOS notification for a change event."""
+    """Send a macOS notification that opens the PR in browser when clicked."""
     title = _TITLES.get(event.event, "Agent Monitor")
     body = f"{event.pr.repo}#{event.pr.number}: {event.pr.title}"
     if event.detail:
         body += f"\n{event.detail}"
 
-    script = (
-        f'display notification "{_escape(body)}" '
-        f'with title "{_escape(title)}" '
-        f'sound name "Glass"'
-    )
+    # Use terminal-notifier for clickable notifications, fall back to osascript
     try:
         subprocess.run(
-            ["osascript", "-e", script],
+            [
+                "terminal-notifier",
+                "-title", title,
+                "-message", body,
+                "-open", event.pr.url,
+                "-sound", "Glass",
+                "-group", event.pr.key,
+            ],
             capture_output=True, timeout=5,
         )
-    except Exception:
-        pass
+    except FileNotFoundError:
+        # Fallback: osascript with open command on click
+        script = (
+            f'display notification "{_escape(body)}" '
+            f'with title "{_escape(title)}" '
+            f'sound name "Glass"'
+        )
+        subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
+        subprocess.run(["open", event.pr.url], capture_output=True, timeout=5)
 
 
 def _escape(s: str) -> str:
